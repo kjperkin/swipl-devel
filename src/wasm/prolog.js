@@ -49,9 +49,10 @@ Prolog.prototype._bind = function() {
 // See http://www.swi-prolog.org/pldoc/doc_for?object=c(%27PL_initialise%27)
 Prolog.prototype._initialise = function() {
     var argv = this.args.map(function(arg) {
-        return this.module.allocate(
-            this.module.intArrayFromString(arg),
-            'i8', this.module.ALLOC_NORMAL);
+        const len = this.module.lengthBytesUTF8(arg)+1,
+              ptr = this.module._malloc(len);
+        this.module.stringToUTF8(arg, ptr, len);
+        return ptr;
     }, this);
     var ptr = this.module._malloc(argv.length * 4);
     argv.forEach(function(arg, i) {
