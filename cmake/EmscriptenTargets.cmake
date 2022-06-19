@@ -25,6 +25,8 @@ add_custom_command(
 
 add_custom_target(wasm_preload DEPENDS ${WASM_BOOT_FILE})
 
+configure_file(${CMAKE_SOURCE_DIR}/src/wasm/prolog.js.in ${CMAKE_CURRENT_BINARY_DIR}/prolog.js)
+
 # Build the browser-deployed binary with a bit different linker flags.
 
 set(WASM_WEB_LINK_FLAGS
@@ -35,7 +37,7 @@ set(WASM_WEB_LINK_FLAGS
     -s EXPORTED_FUNCTIONS=@${CMAKE_SOURCE_DIR}/src/wasm/exports.json
     -s EXPORTED_RUNTIME_METHODS=@${CMAKE_SOURCE_DIR}/src/wasm/runtime_exports.json
     --preload-file "${CMAKE_CURRENT_BINARY_DIR}/${WASM_PRELOAD_DIR}@${WASM_PRELOAD_DIR}"
-    --post-js ${CMAKE_SOURCE_DIR}/src/wasm/prolog.js)
+    --post-js ${CMAKE_CURRENT_BINARY_DIR}/prolog.js)
 join_list(WASM_WEB_LINK_FLAGS_STRING " " ${WASM_WEB_LINK_FLAGS})
 
 add_executable(swipl-web ${SWIPL_SRC})

@@ -61,7 +61,7 @@ Prolog.prototype._initialise = function() {
     if (!this.bindings.PL_initialise(4, ptr)) {
         throw new Error('SWI-Prolog initialisation failed.');
     }
-    this.call_string("assert(user:file_search_path(library, 'wasm-preload/library')).");
+    this.call_string("assert(user:file_search_path(library, '@WASM_PRELOAD_DIR@/library')).");
 };
 
 // Helper function to parse a JavaScript
