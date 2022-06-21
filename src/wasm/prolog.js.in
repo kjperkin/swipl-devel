@@ -30,8 +30,8 @@ Prolog.prototype._bind = function() {
         'PL_is_string', 'number', ['number']);
     this.bindings.PL_initialise = this.module.cwrap(
         'PL_initialise', 'number', ['number', 'number']);
-    this.bindings.PL_new_atom = this.module.cwrap(
-        'PL_new_atom', 'number', ['string']);
+    this.bindings.PL_new_atom_mbchars = this.module.cwrap(
+        'PL_new_atom_mbchars', 'number', ['number', 'number', 'string']);
     this.bindings.PL_new_functor = this.module.cwrap(
         'PL_new_functor', 'number', ['number', 'number']);
     this.bindings.PL_new_term_ref = this.module.cwrap(
@@ -44,6 +44,14 @@ Prolog.prototype._bind = function() {
         'PL_call', 'number', ['number', 'number']);
     this.bindings.PL_unify_arg = this.module.cwrap(
         'PL_unify_arg', 'number', ['number', 'number', 'number']);
+    this.bindings.PL_free = this.module.cwrap(
+        'PL_free', null, ['number']);
+    this.bindings.PL_open_foreign_frame = this.module.cwrap(
+        'PL_open_foreign_frame', 'number', []);
+    this.bindings.PL_discard_foreign_frame = this.module.cwrap(
+        'PL_discard_foreign_frame', null, ['number']);
+    this.bindings.PL_put_atom = this.module.cwrap(
+        'PL_put_atom', 'number', ['number', 'number']);
 };
 
 // See http://www.swi-prolog.org/pldoc/doc_for?object=c(%27PL_initialise%27)
@@ -62,6 +70,26 @@ Prolog.prototype._initialise = function() {
         throw new Error('SWI-Prolog initialisation failed.');
     }
     this.call_string("assert(user:file_search_path(library, '@WASM_PRELOAD_DIR@/library')).");
+};
+
+Prolog.prototype.malloc_call_free = function (size, callback) {
+    return this.alloc_call_free(
+        this.module._malloc.bind(this.module, size),
+        callback,
+        this.module._free.bind(this.module)
+    );
+};
+
+Prolog.prototype.alloc_call_free = function(alloc, callback, free) {
+    var ptr = alloc();
+    if (ptr) {
+        try {
+            return callback(ptr);
+        } finally {
+            free(ptr);
+        }
+    }
+    return null;
 };
 
 // Helper function to parse a JavaScript
@@ -135,12 +163,17 @@ Prolog.prototype.is_string = function(term) {
 
 // Return a C-string for the text represented by the given atom.
 Prolog.prototype.atom_chars = function(atom) {
-    var ptr = this.bindings.PL_atom_chars(atom);
-    if (ptr === 0) {
-        return null;
-    } else {
-        return this.module.Pointer_stringify(ptr);
-    }
+    var self = this;
+    return this.alloc_call_free(
+        this.bindings.PL_open_foreign_frame,
+        function (fid) {
+            var t = self.new_term_ref();
+            if (self.bindings.PL_put_atom(t, a)) {
+                return self.get_chars(t);
+            }
+        },
+        this.bindings.PL_discard_foreign_frame
+    );
 };
 
 // Call term t just like the Prolog predicate once/1.
@@ -156,14 +189,29 @@ Prolog.prototype.chars_to_term = function(query, t) {
 
 // Converts the argument term to a string.
 Prolog.prototype.get_chars = function(term) {
-    var ptr = this.module._malloc(4);
-    var flags = 0x0001 | 0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020 | 0x0080 | 0x1000 | 0x0200;
-    if (this.bindings.PL_get_chars(term, ptr, flags)) {
-        // TODO properly free.
-        return this.module.UTF8ToString(this.module.getValue(ptr, 'i32'));
-    } else {
-        return null;
-    }
+    var self = this;
+    var flags = 0x0001 /* CVT_ATOM */
+              | 0x0002 /* CVT_STRING */
+              | 0x0004 /* CVT_LIST */
+              | 0x0008 /* CVT_INTEGER */
+              | 0x0010 /* CVT_RATIONAL */
+              | 0x0020 /* CVT_FLOAT */
+              | 0x0200 /* CVT_WRITEQ */
+              | 0x1000 /* CVT_EXCEPTION */
+              | 0x20000 /* BUF_MALLOC */
+              | 0x100000 /* REP_UTF8 */
+              ;
+    return this.malloc_call_free(4, function (ptr) {
+        return self.alloc_call_free(
+            function() {
+                if (self.bindings.PL_get_chars(term, ptr, flags)) {
+                    return self.module.getValue(ptr, 'i32');
+                }
+            },
+            self.module.UTF8ToString.bind(self.module),
+            self.bindings.PL_free.bind(self.bindings)
+        );
+    });
 };
 
 // If t is compound and index is between 1 and arity (inclusive),
@@ -174,7 +222,8 @@ Prolog.prototype.get_arg = function(index, term, arg) {
 
 // Return an atom handle for the given C-string.
 Prolog.prototype.new_atom = function(string) {
-    return this.bindings.PL_new_atom(string);
+    var len = this.module.lengthBytesUTF8(string);
+    return this.bindings.PL_new_atom_mbchars(0x100000, len, string);
 };
 
 // Returns a functor identifier, a handle for the name/arity pair.
