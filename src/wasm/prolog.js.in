@@ -50,6 +50,12 @@ Prolog.prototype._bind = function() {
         'PL_open_foreign_frame', 'number', []);
     this.bindings.PL_discard_foreign_frame = this.module.cwrap(
         'PL_discard_foreign_frame', null, ['number']);
+    this.bindings.PL_register_atom = this.module.cwrap(
+        'PL_register_atom', null, ['number']);
+    this.bindings.PL_unregister_atom = this.module.cwrap(
+        'PL_unregister_atom', null, ['number']);
+    this.bindings.PL_atom_ref_count = this.module.cwrap(
+        'PL_atom_ref_count', 'number', ['number']);
     this.bindings.PL_put_atom = this.module.cwrap(
         'PL_put_atom', 'number', ['number', 'number']);
 };

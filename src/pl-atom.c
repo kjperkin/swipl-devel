@@ -1259,7 +1259,6 @@ unregister_atom(volatile Atom p)
   return refs;
 }
 
-
 void
 (PL_unregister_atom)(atom_t a)
 {
@@ -1273,6 +1272,34 @@ void
     unregister_atom(p);
   }
 #endif
+}
+
+
+static int
+atom_ref_count(volatile Atom p)
+{
+  if ( !ATOM_IS_VALID(p->references) )
+  { Sdprintf("OOPS: PL_atom_ref_count('%s'): invalid atom\n", p->name);
+    trap_gdb();
+  }
+  return ATOM_REF_COUNT(p->references);
+}
+
+
+int
+PL_atom_ref_count(atom_t a)
+{
+#ifdef O_ATOMGC
+  size_t index = indexAtom(a);
+
+  if ( index >= GD->atoms.builtin )
+  { Atom p;
+
+    p = fetchAtomArray(index);
+    return atom_ref_count(p);
+  }
+#endif
+  return -1;
 }
 
 
