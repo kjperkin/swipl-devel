@@ -58,6 +58,10 @@ Prolog.prototype._bind = function() {
         'PL_atom_ref_count', 'number', ['number']);
     this.bindings.PL_put_atom = this.module.cwrap(
         'PL_put_atom', 'number', ['number', 'number']);
+    this.bindings.PL_prolog_debug = this.module.cwrap(
+        'PL_prolog_debug', 'number', ['string']);
+    this.bindings.PL_prolog_nodebug = this.module.cwrap(
+        'PL_prolog_nodebug', 'number', ['string']);
 };
 
 // See http://www.swi-prolog.org/pldoc/doc_for?object=c(%27PL_initialise%27)
